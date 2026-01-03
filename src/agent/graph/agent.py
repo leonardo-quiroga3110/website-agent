@@ -67,11 +67,11 @@ class MonteAzulAgent:
         # Determine checkpointer based on available configuration
         if settings.DATABASE_URL:
             async with AsyncConnectionPool(conninfo=settings.DATABASE_URL, max_size=20) as pool:
-                async with AsyncPostgresSaver(pool) as saver:
-                    # Setup tables if they don't exist
-                    await saver.setup()
-                    graph = self.builder.compile(checkpointer=saver)
-                    return await self._execute(graph, safe_query, thread_id)
+                saver = AsyncPostgresSaver(pool)
+                # Setup tables if they don't exist
+                await saver.setup()
+                graph = self.builder.compile(checkpointer=saver)
+                return await self._execute(graph, safe_query, thread_id)
         else:
             # Fallback to no memory or setup local SQLite for testing
             from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
@@ -107,11 +107,11 @@ class MonteAzulAgent:
         
         if settings.DATABASE_URL:
              async with AsyncConnectionPool(conninfo=settings.DATABASE_URL, max_size=20) as pool:
-                async with AsyncPostgresSaver(pool) as saver:
-                    await saver.setup()
-                    graph = self.builder.compile(checkpointer=saver)
-                    async for event in graph.astream({"query": safe_query, "messages": [HumanMessage(content=safe_query)]}, {"configurable": {"thread_id": thread_id}}, stream_mode="values"):
-                        yield event
+                saver = AsyncPostgresSaver(pool)
+                await saver.setup()
+                graph = self.builder.compile(checkpointer=saver)
+                async for event in graph.astream({"query": safe_query, "messages": [HumanMessage(content=safe_query)]}, {"configurable": {"thread_id": thread_id}}, stream_mode="values"):
+                    yield event
         else:
             from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
             async with AsyncSqliteSaver.from_conn_string("checkpoints.sqlite") as saver:
