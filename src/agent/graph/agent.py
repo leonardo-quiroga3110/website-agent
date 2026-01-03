@@ -66,14 +66,22 @@ class MonteAzulAgent:
         
         # Determine checkpointer based on available configuration
         if settings.DATABASE_URL:
-            async with AsyncConnectionPool(conninfo=settings.DATABASE_URL, max_size=20) as pool:
-                saver = AsyncPostgresSaver(pool)
-                # Setup tables if they don't exist
-                await saver.setup()
-                graph = self.builder.compile(checkpointer=saver)
-                return await self._execute(graph, safe_query, thread_id)
+            try:
+                # Add a timeout to avoid hanging the entire app
+                async with AsyncConnectionPool(conninfo=settings.DATABASE_URL, max_size=20, open=True, timeout=10.0) as pool:
+                    saver = AsyncPostgresSaver(pool)
+                    await saver.setup()
+                    graph = self.builder.compile(checkpointer=saver)
+                    return await self._execute(graph, safe_query, thread_id)
+            except Exception as e:
+                print(f"WARNING: Supabase connection failed ({e}). Falling back to local SQLite.")
+                # Fallback to local SQLite if Postgres is unreachable
+                from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+                async with AsyncSqliteSaver.from_conn_string("checkpoints.sqlite") as saver:
+                    graph = self.builder.compile(checkpointer=saver)
+                    return await self._execute(graph, safe_query, thread_id)
         else:
-            # Fallback to no memory or setup local SQLite for testing
+            # Standard local SQLite mode
             from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
             async with AsyncSqliteSaver.from_conn_string("checkpoints.sqlite") as saver:
                 graph = self.builder.compile(checkpointer=saver)
@@ -106,12 +114,20 @@ class MonteAzulAgent:
         ObservabilityMiddleware.log_event(EVENT_SESSION_START, {"query": safe_query, "thread_id": thread_id, "mode": "streaming"})
         
         if settings.DATABASE_URL:
-             async with AsyncConnectionPool(conninfo=settings.DATABASE_URL, max_size=20) as pool:
-                saver = AsyncPostgresSaver(pool)
-                await saver.setup()
-                graph = self.builder.compile(checkpointer=saver)
-                async for event in graph.astream({"query": safe_query, "messages": [HumanMessage(content=safe_query)]}, {"configurable": {"thread_id": thread_id}}, stream_mode="values"):
-                    yield event
+            try:
+                 async with AsyncConnectionPool(conninfo=settings.DATABASE_URL, max_size=20, open=True, timeout=10.0) as pool:
+                    saver = AsyncPostgresSaver(pool)
+                    await saver.setup()
+                    graph = self.builder.compile(checkpointer=saver)
+                    async for event in graph.astream({"query": safe_query, "messages": [HumanMessage(content=safe_query)]}, {"configurable": {"thread_id": thread_id}}, stream_mode="values"):
+                        yield event
+            except Exception as e:
+                print(f"WARNING: Supabase streaming failed ({e}). Falling back to local SQLite.")
+                from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+                async with AsyncSqliteSaver.from_conn_string("checkpoints.sqlite") as saver:
+                    graph = self.builder.compile(checkpointer=saver)
+                    async for event in graph.astream({"query": safe_query, "messages": [HumanMessage(content=safe_query)]}, {"configurable": {"thread_id": thread_id}}, stream_mode="values"):
+                        yield event
         else:
             from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
             async with AsyncSqliteSaver.from_conn_string("checkpoints.sqlite") as saver:
