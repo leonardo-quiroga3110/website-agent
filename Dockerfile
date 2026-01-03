@@ -37,9 +37,9 @@ COPY --chown=user . .
 # Ensure the chroma_db directory exists and is writable
 RUN mkdir -p chroma_db && chmod 777 chroma_db
 
-# Expose the FastAPI port
-EXPOSE 8000
+# Expose the HF Spaces port (default is 7860)
+EXPOSE 7860
 
-# Command to run the application using uvicorn
-# Use the PORT environment variable provided by Render, defaulting to 8000
-CMD sh -c "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"
+# Command to run the application
+# Default to Gradio UI for HF Spaces, but you can still run main.py for WhatsApp
+CMD ["python", "src/ui.py"]
