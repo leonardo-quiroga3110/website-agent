@@ -9,11 +9,6 @@ class Settings(BaseSettings):
     """
     # OpenAI Configuration
     OPENAI_API_KEY: str = Field(..., description="API key for OpenAI models")
-    TAVILY_API_KEY: str | None = Field(default=None, description="API key for Tavily")
-    TAVILY_MCP_URL: str = Field(
-        default="https://mcp.tavily.com/mcp/?tavilyApiKey=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", 
-        description="URL for Tavily MCP server"
-    )
     
     # LangGraph/LangChain Configuration
     LANGCHAIN_TRACING_V2: bool = Field(default=False)
