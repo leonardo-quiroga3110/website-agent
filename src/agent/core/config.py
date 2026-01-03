@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     WHATSAPP_ACCESS_TOKEN: str | None = Field(default=None)
     WEBHOOK_VERIFY_TOKEN: str | None = Field(default=None)
 
+    # Database Configuration (Supabase/Postgres)
+    DATABASE_URL: str | None = Field(default=None, description="PostgreSQL URL for persistent memory")
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
