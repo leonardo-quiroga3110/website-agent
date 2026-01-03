@@ -1,0 +1,56 @@
+[project]
+name = "agent"
+version = "0.1.0"
+description = "Scalable Autonomous Agent using LangGraph"
+authors = [
+    { name = "Your Name", email = "you@example.com" }
+]
+dependencies = [
+    "langgraph>=0.0.15",
+    "langchain>=0.3.0",
+    "langchain-openai>=0.0.2",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "python-dotenv>=1.0.0",
+    "docling>=2.0.0",
+    "langchain-docling>=2.0.0",
+    "chromadb>=0.4.0",
+    "langchain-chroma>=0.1.0",
+    "rank_bm25>=0.2.2",
+    "langchain-classic>=0.1.0",
+    "langchain-community>=0.3.0",
+    "gradio>=5.0.0",
+]
+readme = "README.md"
+requires-python = ">=3.11"
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.1.0",
+    "mypy>=1.0.0",
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.ruff]
+select = ["E", "F", "I"]
+fixable = ["ALL"]
+exclude = [".git", "__pycache__", "dist"]
+line-length = 88
+
+[tool.ruff.isort]
+known-first-party = ["agent"]
+
+[tool.mypy]
+strict = true
+python_version = "3.11"
+ignore_missing_imports = true
+warn_unused_configs = true
+disallow_untyped_defs = true
