@@ -63,13 +63,25 @@ async def handle_message(request: Request, background_tasks: BackgroundTasks):
         entry = data.get("entry", [{}])[0]
         changes = entry.get("changes", [{}])[0]
         value = changes.get("value", {})
-        messages = value.get("messages", [])
+        
+        # Log status updates (like delivery failed/read)
+        statuses = value.get("statuses", [])
+        if statuses:
+            for s in statuses:
+                status = s.get("status")
+                recipient = s.get("recipient_id")
+                errors = s.get("errors", [])
+                if status == "failed":
+                    logger.error(f"Message FAILED to {recipient}. Error: {errors}")
+                else:
+                    logger.info(f"Message status update for {recipient}: {status}")
 
+        messages = value.get("messages", [])
         if not messages:
-            return {"status": "no_messages"}
+            return {"status": "ok", "detail": "not_a_message"}
 
         message = messages[0]
-        sender_id = message.get("from") # User's WhatsApp ID (phone number)
+        sender_id = message.get("from")
         message_type = message.get("type")
 
         if message_type == "text":
@@ -77,11 +89,11 @@ async def handle_message(request: Request, background_tasks: BackgroundTasks):
             message_id = message.get("id")
             logger.info(f"Received message from {sender_id} (ID: {message_id}): {query}")
             
-            # 1. Mark as read immediately (shows blue checks to user)
+            # 1. Mark as read immediately
             if message_id:
                 background_tasks.add_task(whatsapp_client.mark_as_read, message_id)
 
-            # 2. Run agent in the background to avoid Meta's 10s timeout
+            # 2. Run agent in the background
             background_tasks.add_task(process_agent_response, sender_id, query)
             
             return {"status": "processing"}
