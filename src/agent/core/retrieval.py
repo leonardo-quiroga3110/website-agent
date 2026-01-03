@@ -26,6 +26,24 @@ class RAGRetriever:
         )
         self.ensemble_retriever = self._build_ensemble_retriever()
 
+    async def ingest_url(self, url: str):
+        """
+        Scrapes a URL using Docling and adds it to ChromaDB.
+        """
+        from langchain_docling import DoclingLoader
+        from langchain_text_splitters import RecursiveCharacterTextSplitter
+        
+        logger.info(f"Ingesting URL using Docling: {url}")
+        loader = DoclingLoader(file_path=[url])
+        docs = loader.load()
+        
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+        splits = text_splitter.split_documents(docs)
+        
+        # Add to vector store
+        self.vector_store.add_documents(splits)
+        logger.info(f"Successfully ingested {len(splits)} chunks from {url}")
+
     def _build_ensemble_retriever(self):
         """
         Builds an EnsembleRetriever combining Chroma and BM25.
@@ -35,13 +53,10 @@ class RAGRetriever:
             search_kwargs={"k": 5}
         )
 
-        # 2. Setup BM25 retriever
-        # We need to get all documents from Chroma to initialize BM25
-        # Note: For very large datasets, this might be inefficient and should be optimized.
-        # But for the Monte Azul website, it should be fine.
         all_docs = self.vector_store.get()
         if not all_docs or not all_docs['documents']:
-            logger.warning("No documents found in ChromaDB. BM25 retriever will be disabled.")
+            logger.warning("No documents found in ChromaDB. Ingestion required.")
+            # We return a placeholder or just the chroma_retriever which will return empty
             return chroma_retriever
 
         documents = [
@@ -55,7 +70,7 @@ class RAGRetriever:
         # 3. Create Ensemble Retriever
         ensemble = EnsembleRetriever(
             retrievers=[chroma_retriever, bm25_retriever],
-            weights=[0.6, 0.4]  # Weight more towards semantic search
+            weights=[0.6, 0.4]
         )
         return ensemble
 

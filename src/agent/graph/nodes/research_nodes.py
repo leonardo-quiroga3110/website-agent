@@ -78,15 +78,39 @@ async def researcher(state: AgentState) -> Dict[str, Any]:
     # Run all queries in parallel
     results = await asyncio.gather(*[retrieve_query(q) for q in queries])
     
+    found_docs = False
     for q, docs in results:
-        for doc in docs:
-            content_preview = doc.page_content[:100]
-            if not any(content_preview in r['content'] for r in new_research):
-                new_research.append({
-                    "url": doc.metadata.get("source", "Monte Azul Website"),
-                    "content": doc.page_content,
-                    "metadata": doc.metadata
-                })
+        if docs:
+            found_docs = True
+            for doc in docs:
+                content_preview = doc.page_content[:100]
+                if not any(content_preview in r['content'] for r in new_research):
+                    new_research.append({
+                        "url": doc.metadata.get("source", "Monte Azul Website"),
+                        "content": doc.page_content,
+                        "metadata": doc.metadata
+                    })
+    
+    # --- AUTO-INGESTION FALLBACK (Docling) ---
+    # If no research was found and it's the first step, ingest the official URL
+    from agent.core.config import get_settings
+    settings = get_settings()
+    if not found_docs and state.get("iterations", 0) <= 1:
+        print(f"DEBUG: No docs found in DB. Auto-ingesting {settings.WEBSITE_URL} via Docling...")
+        await retriever.ingest_url(settings.WEBSITE_URL)
+        # Re-run the queries once after ingestion
+        results = await asyncio.gather(*[retrieve_query(q) for q in queries])
+        for q, docs in results:
+            for doc in docs:
+                content_preview = doc.page_content[:100]
+                if not any(content_preview in r['content'] for r in new_research):
+                    new_research.append({
+                        "url": doc.metadata.get("source", "Monte Azul Website"),
+                        "content": doc.page_content,
+                        "metadata": doc.metadata
+                    })
+    
+    for q, _ in results:
         completed.append(f"Retrieved context for: {q}")
     
     # Early termination: if no new research found after first attempt
