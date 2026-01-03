@@ -74,9 +74,14 @@ async def handle_message(request: Request, background_tasks: BackgroundTasks):
 
         if message_type == "text":
             query = message.get("text", {}).get("body")
-            logger.info(f"Received message from {sender_id}: {query}")
+            message_id = message.get("id")
+            logger.info(f"Received message from {sender_id} (ID: {message_id}): {query}")
             
-            # Run agent in the background to avoid Meta's 10s timeout
+            # 1. Mark as read immediately (shows blue checks to user)
+            if message_id:
+                background_tasks.add_task(whatsapp_client.mark_as_read, message_id)
+
+            # 2. Run agent in the background to avoid Meta's 10s timeout
             background_tasks.add_task(process_agent_response, sender_id, query)
             
             return {"status": "processing"}

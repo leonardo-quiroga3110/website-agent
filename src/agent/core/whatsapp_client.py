@@ -40,9 +40,24 @@ class WhatsAppClient:
             except httpx.HTTPStatusError as e:
                 logger.error(f"Failed to send message: {e.response.text}")
                 raise e
+    async def mark_as_read(self, message_id: str):
+        """
+        Marks a message as read to show the blue checkmarks (optional but good for UX).
+        """
+        payload = {
+            "messaging_product": "whatsapp",
+            "status": "read",
+            "message_id": message_id
+        }
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json"
+        }
+        async with httpx.AsyncClient() as client:
+            try:
+                await client.post(self.base_url, json=payload, headers=headers)
             except Exception as e:
-                logger.error(f"Error sending message: {str(e)}")
-                raise e
+                logger.warning(f"Could not mark message {message_id} as read: {str(e)}")
 
 # Instance for easy use
 whatsapp_client = WhatsAppClient()
