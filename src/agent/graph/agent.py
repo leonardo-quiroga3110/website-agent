@@ -21,6 +21,9 @@ class MonteAzulAgent:
     def __init__(self):
         self.builder = self._build_graph_builder()
         self.graph = None 
+        # Ultimate fallback for demo stability
+        from langgraph.checkpoint.memory import MemorySaver
+        self.memory_saver = MemorySaver()
 
     def _should_continue(self, state: AgentState):
         """
@@ -64,28 +67,21 @@ class MonteAzulAgent:
         safe_query = GuardrailMiddleware.apply_input_guardrails(query)
         ObservabilityMiddleware.log_event(EVENT_SESSION_START, {"query": safe_query, "thread_id": thread_id})
         
-        # Determine checkpointer based on available configuration
+        # 1. Try Supabase (Postgres)
         if settings.DATABASE_URL:
             try:
-                # Add a timeout to avoid hanging the entire app
+                # Add a timeout to avoid hanging
                 async with AsyncConnectionPool(conninfo=settings.DATABASE_URL, max_size=20, open=True, timeout=10.0) as pool:
                     saver = AsyncPostgresSaver(pool)
                     await saver.setup()
                     graph = self.builder.compile(checkpointer=saver)
                     return await self._execute(graph, safe_query, thread_id)
             except Exception as e:
-                print(f"WARNING: Supabase connection failed ({e}). Falling back to local SQLite.")
-                # Fallback to local SQLite if Postgres is unreachable
-                from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
-                async with AsyncSqliteSaver.from_conn_string("checkpoints.sqlite") as saver:
-                    graph = self.builder.compile(checkpointer=saver)
-                    return await self._execute(graph, safe_query, thread_id)
-        else:
-            # Standard local SQLite mode
-            from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
-            async with AsyncSqliteSaver.from_conn_string("checkpoints.sqlite") as saver:
-                graph = self.builder.compile(checkpointer=saver)
-                return await self._execute(graph, safe_query, thread_id)
+                print(f"WARNING: Supabase connection failed ({e}). Falling back to MemorySaver.")
+        
+        # 2. Expert Fallback: MemorySaver (Always works)
+        graph = self.builder.compile(checkpointer=self.memory_saver)
+        return await self._execute(graph, safe_query, thread_id)
 
     async def _execute(self, graph, query, thread_id):
         from langchain_core.messages import HumanMessage
@@ -113,6 +109,7 @@ class MonteAzulAgent:
         safe_query = GuardrailMiddleware.apply_input_guardrails(query)
         ObservabilityMiddleware.log_event(EVENT_SESSION_START, {"query": safe_query, "thread_id": thread_id, "mode": "streaming"})
         
+        # 1. Try Supabase
         if settings.DATABASE_URL:
             try:
                  async with AsyncConnectionPool(conninfo=settings.DATABASE_URL, max_size=20, open=True, timeout=10.0) as pool:
@@ -121,21 +118,17 @@ class MonteAzulAgent:
                     graph = self.builder.compile(checkpointer=saver)
                     async for event in graph.astream({"query": safe_query, "messages": [HumanMessage(content=safe_query)]}, {"configurable": {"thread_id": thread_id}}, stream_mode="values"):
                         yield event
+                    return # Exit after successful streaming
             except Exception as e:
-                print(f"WARNING: Supabase streaming failed ({e}). Falling back to local SQLite.")
-                from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
-                async with AsyncSqliteSaver.from_conn_string("checkpoints.sqlite") as saver:
-                    graph = self.builder.compile(checkpointer=saver)
-                    async for event in graph.astream({"query": safe_query, "messages": [HumanMessage(content=safe_query)]}, {"configurable": {"thread_id": thread_id}}, stream_mode="values"):
-                        yield event
-        else:
-            from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
-            async with AsyncSqliteSaver.from_conn_string("checkpoints.sqlite") as saver:
-                graph = self.builder.compile(checkpointer=saver)
-                async for event in graph.astream({"query": safe_query, "messages": [HumanMessage(content=safe_query)]}, {"configurable": {"thread_id": thread_id}}, stream_mode="values"):
-                    yield event
+                print(f"WARNING: Supabase streaming failed ({e}). Falling back to MemorySaver.")
+
+        # 2. Expert Fallback: MemorySaver (Always works)
+        graph = self.builder.compile(checkpointer=self.memory_saver)
+        async for event in graph.astream({"query": safe_query, "messages": [HumanMessage(content=safe_query)]}, {"configurable": {"thread_id": thread_id}}, stream_mode="values"):
+            yield event
             
         ObservabilityMiddleware.log_event(EVENT_SESSION_END, {"thread_id": thread_id, "status": "success_stream"})
 
 # Instance for easy import
 agent = MonteAzulAgent()
+```
