@@ -131,4 +131,3 @@ class MonteAzulAgent:
 
 # Instance for easy import
 agent = MonteAzulAgent()
-```
