@@ -40,9 +40,14 @@ class RAGRetriever:
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
         splits = text_splitter.split_documents(docs)
         
+        # Docling provides complex metadata that ChromaDB doesn't support.
+        # We filter out nested dictionaries to prevent errors.
+        from langchain_community.vectorstores.utils import filter_complex_metadata
+        safe_splits = filter_complex_metadata(splits)
+        
         # Add to vector store
-        self.vector_store.add_documents(splits)
-        logger.info(f"Successfully ingested {len(splits)} chunks from {url}")
+        self.vector_store.add_documents(safe_splits)
+        logger.info(f"Successfully ingested {len(safe_splits)} chunks from {url}")
 
     def _build_ensemble_retriever(self):
         """
