@@ -28,7 +28,7 @@ WORKDIR $HOME/app
 # Copy the dependency files and install
 COPY --chown=user pyproject.toml README.md ./
 COPY --chown=user src ./src
-RUN pip install --no-cache-dir langgraph-checkpoint-postgres "psycopg[binary]" psycopg-pool
+RUN pip install --no-cache-dir langgraph-checkpoint-postgres langgraph-checkpoint-sqlite "psycopg[binary]" psycopg-pool
 RUN pip install --no-cache-dir .
 
 # Copy the rest of the application
