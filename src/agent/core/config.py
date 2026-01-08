@@ -25,10 +25,9 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL: str = Field(default="text-embedding-3-small", description="OpenAI embedding model")
     WEBSITE_URL: str = Field(default="https://www.monteazulgroup.com/es", description="Website to scrape")
 
-    # WhatsApp Business API Configuration
-    WHATSAPP_PHONE_NUMBER_ID: str | None = Field(default=None)
-    WHATSAPP_ACCESS_TOKEN: str | None = Field(default=None)
-    WEBHOOK_VERIFY_TOKEN: str | None = Field(default=None)
+    # Website search fallback
+    TAVILY_API_KEY: str | None = Field(default=None)
+
 
     # Database Configuration (Supabase/Postgres)
     DATABASE_URL: str | None = Field(default=None, description="PostgreSQL URL for persistent memory")
