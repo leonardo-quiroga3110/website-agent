@@ -28,17 +28,23 @@ A premium, production-ready autonomous agent designed to provide expert-level in
 - [uv](https://github.com/astral-sh/uv) (recommended) or `pip`
 
 ### 2. Installation
-Install the project dependencies:
+Install the project dependencies (using `uv` is recommended):
 ```bash
+uv pip install -e .
+# or
 pip install -e .
 ```
 
 ### 3. Environment Configuration
-Create a `.env` file in the root directory and add your keys:
-```env
-OPENAI_API_KEY=your_openai_key
-TAVILY_API_KEY=your_tavily_key
+Copy the example environment file and add your keys:
+```bash
+cp .env.example .env
 ```
+Edit `.env` and provide:
+- `OPENAI_API_KEY`: Your OpenAI API key.
+- `TAVILY_API_KEY`: Your Tavily API key (optional for web search).
+- `WEBSITE_URL`: The URL to scrape (e.g., `https://www.monteazulgroup.com/es`).
+
 
 ---
 
