@@ -82,7 +82,6 @@ To deploy this agent as a **Hugging Face Space**:
 3. **Set Secrets**:
    - Go to **Settings > Variables and Secrets**.
    - Add `OPENAI_API_KEY` (mandatory for embeddings and chat).
-   - Add `TAVILY_API_KEY` (optional for fallback searching).
 4. **Deploy**: The provided `Dockerfile` will automatically install the system dependencies for Docling and launch the app.
 
 ---
